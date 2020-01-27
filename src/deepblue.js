@@ -30,6 +30,10 @@ function DeepBlue(discord) {
     discord.on("guildMemberRemove", member => {
         this.lichessTracker.remove(null, member);
     });
+
+	discord.on("error", e => console.error(e));
+	discord.on("warn", e => console.warn(e));
+	discord.on("debug", e => console.info(e));
 }
 
 DeepBlue.prototype.onMessage = function(msg) {

@@ -66,7 +66,6 @@ LichessTracker.prototype.parseLichessUserData = function(data) {
         }
 
         //Decrease rating if RD is above theshold and rating above threshold
-        //-1 for clearing up rounding, as Lichess shows RD with decimals
         if(!data.perfs[type].prov
             && data.perfs[type].rd > cfg.lichessTracker.ratingDeviationThreshold - 1) {
 
@@ -191,7 +190,7 @@ LichessTracker.prototype.updateAll = function() {
             //Round to multiple of 2
             let rem = Math.round((this.lastUpdateAt + cfg.lichessTracker.updateAllDelay - Date.now()) / 2000) * 2;
             this.deepblue.discord.user.setActivity(`updates in ${rem}s`, { type: 'PLAYING' });
-        }, 8000);
+        }, 10000);
 
         setTimeout(() => {
             this.updateAll();

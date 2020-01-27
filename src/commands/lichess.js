@@ -18,7 +18,7 @@ function LichessCommand(deepblue, msg) {
 
         if(staffRoleOnMember) {
             //Check if mention
-            let member = deepblue.getMemberFromMention(split[1]);
+            let member = deepblue.getMemberFromMention(split[2]);
 
             if(member) {
                 deepblue.lichessTracker.track(msg, split[1], member);
