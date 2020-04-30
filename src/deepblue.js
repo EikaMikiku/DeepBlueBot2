@@ -33,7 +33,6 @@ function DeepBlue(discord) {
 
 	discord.on("error", e => console.error(e));
 	discord.on("warn", e => console.warn(e));
-	discord.on("debug", e => console.info(e));
 }
 
 DeepBlue.prototype.onMessage = function(msg) {

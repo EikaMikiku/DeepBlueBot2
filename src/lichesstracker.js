@@ -178,8 +178,7 @@ LichessTracker.prototype.updateAll = function() {
     chain = chain.then(() => {
         this.dataManager.saveData(this.data);
     });
-    chain.catch(console.error);
-    chain.finally(() => {
+    chain.then(() => {
         this.lastUpdateAt = Date.now();
 
         if(this.updateInterval) {
@@ -196,6 +195,7 @@ LichessTracker.prototype.updateAll = function() {
             this.updateAll();
         }, cfg.lichessTracker.updateAllDelay);
     });
+    chain.catch(console.error);
 
     start();
 };
