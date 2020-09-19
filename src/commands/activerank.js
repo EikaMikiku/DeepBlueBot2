@@ -24,7 +24,6 @@ async function RankCommand(deepblue, msg) {
         }
         if(!member) {
             await deepblue.sendMessage(msg.channel, `Couldn't find tracked Lichess username "${split[1]}".`);
-            msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
             return;
         }
     }
@@ -41,13 +40,11 @@ async function RankCommand(deepblue, msg) {
 
     if(!userData) {
         await deepblue.sendMessage(msg.channel, "Couldn't find ranking.");
-        msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
         return;
     }
 
     if(userData.allProvisional) {
         await deepblue.sendMessage(msg.channel, "All ratings are provisional. Cannot fetch active ranks.");
-        msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
         return;
     }
 
@@ -67,7 +64,6 @@ async function RankCommand(deepblue, msg) {
         if(uid === member.id) {
             //If asking active rating for an inactive member
             await deepblue.sendMessage(msg.channel, "Member is inactive. Cannot fetch active ranks.");
-            msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
             return;
         }
         delete allData[uid];
@@ -153,7 +149,6 @@ async function RankCommand(deepblue, msg) {
     }
 
     await deepblue.sendMessage(msg.channel, result);
-    msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
 }
 
 function getUidFromUsername(allData, username) {

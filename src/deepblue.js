@@ -46,6 +46,18 @@ DeepBlue.prototype.onMessage = async function(msg) {
     } else if(cmd.startsWith("lichess") || cmd.startsWith("link")) {
         await LichessCommand(this, msg);
         msg.delete(cfg.deepblue.messageDeleteDelay);
+    } else if(cmd.startsWith("rank") || cmd.startsWith("myrank")) {
+        await RankCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
+    } else if(cmd.startsWith("activerank") || cmd.startsWith("activemyrank") || cmd.startsWith("actrank") || cmd.startsWith("actmyrank")) {
+        await ActiveRankCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
+    } else if(cmd.startsWith("list")) {
+        await ListCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
+    } else if(cmd.startsWith("active") || cmd.startsWith("actlist")) {
+        await ActiveListCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
     } else if(cmd.startsWith("remove") || cmd.startsWith("unlink")) {
         await RemoveCommand(this, msg);
         msg.delete(cfg.deepblue.messageDeleteDelay);

@@ -27,7 +27,6 @@ async function ListCommand(deepblue, msg) {
         page = parseInt(split[2]);
         if(isNaN(page) || page.toString() !== split[2]) {
             await deepblue.sendMessage(msg.channel, "Invalid page.");
-            msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
             return;
         }
     }
@@ -54,7 +53,6 @@ async function ListCommand(deepblue, msg) {
 
     if(collectedData.length === 0) {
         await deepblue.sendMessage(msg.channel, "Couldn't find listing for that chess variant.");
-        msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
         return;
     }
 
@@ -72,7 +70,6 @@ async function ListCommand(deepblue, msg) {
 
     if(collectedData.length === 0) {
         await deepblue.sendMessage(msg.channel, "No non-provisional rankings found to be listed.");
-        msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
         return;
     }
 
@@ -110,7 +107,6 @@ async function ListCommand(deepblue, msg) {
     }
 
     await deepblue.sendMessage(msg.channel, output);
-    msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
 }
 
 module.exports = ListCommand;
