@@ -25,7 +25,7 @@ client.on("ready", () => {
     }
 
     new DeepBlue(client);
-    console.log("The bot started!");
+    console.log(new Date().toString(), "The bot started!");
 });
 
 client.on("error", console.error);

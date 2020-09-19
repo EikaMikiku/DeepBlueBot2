@@ -15,14 +15,14 @@ function LichessTracker(deepblue) {
 
 LichessTracker.prototype.validateLichessParsedData = function(data, noModSpam) {
     if(data.closed) {
-        console.error(`Account "${data.username}" is closed on Lichess.`);
+        console.log(`Account "${data.username}" is closed on Lichess.`);
         if(!noModSpam) {
             this.deepblue.modChannel.send(`${this.deepblue.staffRole}\n${data.username} has a closed account.`);
         }
         return false;
     }
     if(data.cheating) {
-        console.error(data.cheating);
+        console.log(data.cheating);
         if(!noModSpam) {
             this.deepblue.modChannel.send(`${this.deepblue.staffRole}\n${data.cheating}`);
         }
@@ -50,6 +50,7 @@ LichessTracker.prototype.parseLichessUserData = function(data) {
             cheating += " uses chess computer assistance, and artificially increases/decreases their rating.";
         }
         output.cheating = cheating;
+        console.log(output.cheating);
     }
 
     let allProvisional = true;
@@ -124,7 +125,7 @@ LichessTracker.prototype.updateManyUsers = function(lichessData) {
                 perf
             );
 
-            if(updatedRole) {
+            if(updatedRole && currentRatingRole) {
                 let mrInt = parseInt(updatedRole.name);
                 let crrInt = parseInt(currentRatingRole.name);
                 if(isNaN(crrInt)) {
@@ -172,7 +173,7 @@ LichessTracker.prototype.updateAll = function() {
                 }, i === 0 ? 0 : cfg.lichessTracker.apiRequestTimeout);
             });
         })
-        .catch(console.error);
+        .catch((e) => console.error("update all inner chain", e));
     }
 
     chain = chain.then(() => {
@@ -188,14 +189,23 @@ LichessTracker.prototype.updateAll = function() {
         this.updateInterval = setInterval(() => {
             //Round to multiple of 2
             let rem = Math.round((this.lastUpdateAt + cfg.lichessTracker.updateAllDelay - Date.now()) / 2000) * 2;
-            this.deepblue.discord.user.setActivity(`updates in ${rem}s`, { type: 'PLAYING' });
+            if(rem <= 0) {
+            	this.deepblue.discord.user.setActivity(`updates now!`, { type: 'PLAYING' });
+            } else {
+            	this.deepblue.discord.user.setActivity(`updates in ${rem}s`, { type: 'PLAYING' });
+            }
         }, 10000);
 
         setTimeout(() => {
             this.updateAll();
         }, cfg.lichessTracker.updateAllDelay);
     });
-    chain.catch(console.error);
+    chain.catch((e) => {
+    	console.log("Error", e);
+    	console.error("update all chain", e);
+    	process.exit(1);
+    });
+
 
     start();
 };
@@ -303,7 +313,9 @@ LichessTracker.prototype.remove = function(msg, member) {
         }
 
         let channel = msg ? msg.channel : this.deepblue.botChannel;
-        this.deepblue.sendMessage(channel, `No longer tracking ${member.nickname || member.user.username}.`, true);
+        let str = `No longer tracking ${member.nickname || member.user.username}.`;
+        this.deepblue.sendMessage(channel, str, true);
+        console.log(str);
     }
 };
 

@@ -31,8 +31,8 @@ function DeepBlue(discord) {
         this.lichessTracker.remove(null, member);
     });
 
-	discord.on("error", e => console.error(e));
-	discord.on("warn", e => console.warn(e));
+	discord.on("error", e => console.error("Outer error", e));
+	discord.on("warn", e => console.warn("Outer warning", e));
 }
 
 DeepBlue.prototype.onMessage = function(msg) {
@@ -40,6 +40,7 @@ DeepBlue.prototype.onMessage = function(msg) {
         return; //Not a command, or a direct message
     }
     let cmd = msg.content.substring(1).toLowerCase();
+    let log = true;
 
     if(cmd.startsWith("fen")) {
         FenCommand(this, msg);
@@ -67,9 +68,13 @@ DeepBlue.prototype.onMessage = function(msg) {
         VariantsCommand(this, msg);
     } else if(cmd === "update") {
         this.sendMessage(msg.channel, "Bot auto updates now. Check when the next update is due in the bot's status message.");
+    } else {
+    	log = false;
     }
 
-    console.log(new Date().toString(), msg.member.nickname || msg.author.username, ":", msg.content);
+    if(log) {
+    	console.log(new Date().toString(), msg.member.nickname || msg.author.username, ":", msg.content);
+    }
 };
 
 DeepBlue.prototype.sendMessage = function(channel, msg, keep) {
@@ -79,9 +84,9 @@ DeepBlue.prototype.sendMessage = function(channel, msg, keep) {
     channel.send(msg)
     .then(sent => {
         if(!sent.deleted && !keep) {
-            sent.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
+            sent.delete(cfg.deepblue.messageDeleteDelay).catch(e => console.error("Error deleting message", e));
         }
-    }).catch(console.error);
+    }).catch(e => console.error("Error sending message: " + msg, e));
 };
 
 DeepBlue.prototype.getMemberFromMention = function(text) {
