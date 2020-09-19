@@ -2,7 +2,7 @@ const cfg = require("../../config.json");
 const DataManager = require("../datamanager.js");
 const PerformanceBreakdown = require("../perf.js");
 
-function RankCommand(deepblue, msg) {
+async function RankCommand(deepblue, msg) {
     if(cfg.rank.channels) {
         if(!cfg.rank.channels.includes(msg.channel.name)) {
             return; //Not in the right channel
@@ -23,7 +23,7 @@ function RankCommand(deepblue, msg) {
             member = deepblue.guild.members.get(uid);
         }
         if(!member) {
-            deepblue.sendMessage(msg.channel, `Couldn't find tracked Lichess username "${split[1]}".`);
+            await deepblue.sendMessage(msg.channel, `Couldn't find tracked Lichess username "${split[1]}".`);
             msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
             return;
         }
@@ -40,7 +40,7 @@ function RankCommand(deepblue, msg) {
     }
 
     if(!userData) {
-        deepblue.sendMessage(msg.channel, "Couldn't find ranking.");
+        await deepblue.sendMessage(msg.channel, "Couldn't find ranking.");
         msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
         return;
     }
@@ -131,7 +131,7 @@ function RankCommand(deepblue, msg) {
         result.embed.description += ` RD is above ${cfg.lichessTracker.ratingDeviationThreshold}.`;
     }
 
-    deepblue.sendMessage(msg.channel, result);
+    await deepblue.sendMessage(msg.channel, result);
     msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
 }
 

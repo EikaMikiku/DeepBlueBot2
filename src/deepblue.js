@@ -18,8 +18,8 @@ const ActiveRankCommand = require("./commands/activerank.js");
 
 function DeepBlue(discord) {
     this.guild = discord.guilds.first();
-    this.botChannel = this.guild.channels.find(c => c.name === cfg.deepblue.botChannelName);
-    this.modChannel = this.guild.channels.find(c => c.name === cfg.deepblue.modChannelName);
+    this.botChannel = this.guild.channels.find(val => val.name === cfg.deepblue.botChannelName);
+    this.modChannel = this.guild.channels.find(val => val.name === cfg.deepblue.modChannelName);
     this.staffRole = this.guild.roles.find(val => val.name === cfg.deepblue.staffRole);
     this.discord = discord;
     this.ratingRoleManager = new RatingRoleManager(this);
@@ -30,59 +30,52 @@ function DeepBlue(discord) {
     discord.on("guildMemberRemove", member => {
         this.lichessTracker.remove(null, member);
     });
-
-	discord.on("error", e => console.error(e));
-	discord.on("warn", e => console.warn(e));
-	discord.on("debug", e => console.info(e));
 }
 
-DeepBlue.prototype.onMessage = function(msg) {
+DeepBlue.prototype.onMessage = async function(msg) {
     if(!cfg.deepblue.commandStartChars.includes(msg.content[0]) || !msg.member) {
         return; //Not a command, or a direct message
     }
     let cmd = msg.content.substring(1).toLowerCase();
 
     if(cmd.startsWith("fen")) {
-        FenCommand(this, msg);
+        await FenCommand(this, msg);
     } else if(cmd.startsWith("help") || cmd.startsWith("dbhelp")) {
-        HelpCommand(this, msg);
+        await HelpCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
     } else if(cmd.startsWith("lichess") || cmd.startsWith("link")) {
-        LichessCommand(this, msg);
-    } else if(cmd.startsWith("rank") || cmd.startsWith("myrank")) {
-        RankCommand(this, msg);
-    } else if(cmd.startsWith("activerank") || cmd.startsWith("activemyrank") || cmd.startsWith("actrank") || cmd.startsWith("actmyrank")) {
-        ActiveRankCommand(this, msg);
-    } else if(cmd.startsWith("list")) {
-        ListCommand(this, msg);
-    } else if(cmd.startsWith("active") || cmd.startsWith("actlist")) {
-        ActiveListCommand(this, msg);
+        await LichessCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
     } else if(cmd.startsWith("remove") || cmd.startsWith("unlink")) {
-        RemoveCommand(this, msg);
+        await RemoveCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
     } else if(cmd === "arena") {
-        ArenaCommand(this, msg);
+        await ArenaCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
     } else if(cmd === "league") {
-        LeagueCommand(this, msg);
+        await LeagueCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
     } else if(cmd === "study") {
-        StudyCommand(this, msg);
+        await StudyCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
     } else if(cmd === "variants") {
-        VariantsCommand(this, msg);
+        await VariantsCommand(this, msg);
+        msg.delete(cfg.deepblue.messageDeleteDelay);
     } else if(cmd === "update") {
-        this.sendMessage(msg.channel, "Bot auto updates now. Check when the next update is due in the bot's status message.");
+        await this.sendMessage(msg.channel, "Bot auto updates now. Check when the next update is due in the bot's status message.");
     }
 
     console.log(new Date().toString(), msg.member.nickname || msg.author.username, ":", msg.content);
 };
 
-DeepBlue.prototype.sendMessage = function(channel, msg, keep) {
+DeepBlue.prototype.sendMessage = async function(channel, msg, keep) {
     if(!channel) {
         channel = this.botChannel;
     }
-    channel.send(msg)
-    .then(sent => {
-        if(!sent.deleted && !keep) {
-            sent.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
-        }
-    }).catch(console.error);
+    let sent = await channel.send(msg);
+    if(!sent.deleted && !keep) {
+        sent.delete(cfg.deepblue.messageDeleteDelay);
+    }
 };
 
 DeepBlue.prototype.getMemberFromMention = function(text) {

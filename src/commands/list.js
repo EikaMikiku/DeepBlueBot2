@@ -2,7 +2,7 @@ const cfg = require("../../config.json");
 const DataManager = require("../datamanager.js");
 const PerformanceBreakdown = require("../perf.js");
 
-function ListCommand(deepblue, msg) {
+async function ListCommand(deepblue, msg) {
     if(cfg.list.channels) {
         if(!cfg.list.channels.includes(msg.channel.name)) {
             return; //Not in the right channel
@@ -26,7 +26,7 @@ function ListCommand(deepblue, msg) {
         type = split[1];
         page = parseInt(split[2]);
         if(isNaN(page) || page.toString() !== split[2]) {
-            deepblue.sendMessage(msg.channel, "Invalid page.");
+            await deepblue.sendMessage(msg.channel, "Invalid page.");
             msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
             return;
         }
@@ -53,7 +53,7 @@ function ListCommand(deepblue, msg) {
     }
 
     if(collectedData.length === 0) {
-        deepblue.sendMessage(msg.channel, "Couldn't find listing for that chess variant.");
+        await deepblue.sendMessage(msg.channel, "Couldn't find listing for that chess variant.");
         msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
         return;
     }
@@ -71,7 +71,7 @@ function ListCommand(deepblue, msg) {
     });
 
     if(collectedData.length === 0) {
-        deepblue.sendMessage(msg.channel, "No non-provisional rankings found to be listed.");
+        await deepblue.sendMessage(msg.channel, "No non-provisional rankings found to be listed.");
         msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
         return;
     }
@@ -109,7 +109,7 @@ function ListCommand(deepblue, msg) {
         output.embed.description += `${(i + 1)}: **${collectedData[i].maxRating.rating}** [${nick}](${url}) ${typeStr}\n`;
     }
 
-    deepblue.sendMessage(msg.channel, output);
+    await deepblue.sendMessage(msg.channel, output);
     msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
 }
 
