@@ -1,6 +1,6 @@
 const cfg = require("../../config.json");
 
-function LichessCommand(deepblue, msg) {
+async function LichessCommand(deepblue, msg) {
     if(cfg.lichess.channels) {
         if(!cfg.lichess.channels.includes(msg.channel.name)) {
             return; //Not in the right channel
@@ -10,9 +10,9 @@ function LichessCommand(deepblue, msg) {
     let split = msg.content.split(/\s+/);
 
     if(split.length < 2) {
-        deepblue.sendMessage(msg.channel, "Not enough parameters.");
+        await deepblue.sendMessage(msg.channel, "Not enough parameters.");
     } else if(split.length === 2) {
-        deepblue.lichessTracker.track(msg, split[1]);
+        await deepblue.lichessTracker.track(msg, split[1]);
     } else if(split.length === 3) {
         let staffRoleOnMember = msg.member.roles.find(val => val.name === cfg.deepblue.staffRole);
 
@@ -23,16 +23,14 @@ function LichessCommand(deepblue, msg) {
             if(member) {
                 deepblue.lichessTracker.track(msg, split[1], member);
             } else {
-                deepblue.sendMessage(msg.channel, "Couldn't find a member from mention.");
+                await deepblue.sendMessage(msg.channel, "Couldn't find a member from mention.");
             }
         } else {
-            deepblue.sendMessage(msg.channel, "You do not have a staff role to use this command.");
+            await deepblue.sendMessage(msg.channel, "You do not have a staff role to use this command.");
         }
     } else {
-        deepblue.sendMessage(msg.channel, "Too many parameters.");
+        await deepblue.sendMessage(msg.channel, "Too many parameters.");
     }
-
-    msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
 }
 
 module.exports = LichessCommand;

@@ -75,17 +75,23 @@ PerformanceBreakdown.getFideEstimate = function(perfs) {
 PerformanceBreakdown.toPerfName = function(name) {
     if(name === "ultrabullet" || name === "ultra") {
         return "ultraBullet";
-    } else if(name === "koth" || name === "kingofthehill") {
+    }
+    if(name === "koth" || name === "kingofthehill") {
         return "kingOfTheHill";
-    } else if(name === "960" || name === "fischer" || name === "c960") {
+    }
+    if(name === "960" || name === "fischer" || name === "c960") {
         return "chess960";
-    } else if(name === "bughouse" || name === "ch" || name === "zh") {
+    }
+    if(name === "bughouse" || name === "ch" || name === "zh") {
         return "crazyhouse";
-    } else if(name === "threecheck" || name === "3c") {
+    }
+    if(name === "threecheck" || name === "3c") {
         return "threeCheck";
-    } else if(name === "corr") {
+    }
+    if(name === "corr") {
         return "correspondence";
-    } else if(name === "racingkings" || name === "rk") {
+    }
+    if(name === "racingkings" || name === "rk") {
         return "racingKings";
     }
 

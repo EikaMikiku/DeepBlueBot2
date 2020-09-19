@@ -1,6 +1,6 @@
 const cfg = require("../../config.json");
 
-function RemoveCommand(deepblue, msg) {
+async function RemoveCommand(deepblue, msg) {
     if(cfg.remove.channels) {
         if(!cfg.remove.channels.includes(msg.channel.name)) {
             return; //Not in the right channel
@@ -10,7 +10,7 @@ function RemoveCommand(deepblue, msg) {
     let split = msg.content.split(/\s+/);
 
     if(split.length < 2) {
-        deepblue.lichessTracker.remove(msg, msg.member);
+        await deepblue.lichessTracker.remove(msg, msg.member);
     } else if(split.length === 2) {
         let staffRoleOnMember = msg.member.roles.find(val => val.name === cfg.deepblue.staffRole);
 
@@ -19,19 +19,17 @@ function RemoveCommand(deepblue, msg) {
             let member = deepblue.getMemberFromMention(split[1]);
 
             if(member) {
-                deepblue.lichessTracker.remove(msg, member);
+                await deepblue.lichessTracker.remove(msg, member);
             } else {
                 //Remove by username
-                deepblue.lichessTracker.removeByUsername(msg, split[1]);
+                await deepblue.lichessTracker.removeByUsername(msg, split[1]);
             }
         } else {
-            deepblue.sendMessage(msg.channel, "You do not have a staff role to use this command.");
+            await deepblue.sendMessage(msg.channel, "You do not have a staff role to use this command.");
         }
     } else {
-        deepblue.sendMessage(msg.channel, "Too many parameters.");
+        await deepblue.sendMessage(msg.channel, "Too many parameters.");
     }
-
-    msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
 }
 
 module.exports = RemoveCommand;

@@ -29,3 +29,4 @@ client.on("ready", () => {
 });
 
 client.on("error", console.error);
+client.on("warn", console.warn);

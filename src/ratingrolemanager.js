@@ -8,15 +8,15 @@ function RatingRoleManager(deepblue) {
 
     this.deepblue.discord.on("guildMemberAdd", member => {
         let role =  this.deepblue.guild.roles.find(val => val.name === this.unrankedRole);
-        member.addRole(role).catch(e => console.error("", e));
+        member.addRole(role);
     });
 }
 
-RatingRoleManager.prototype.assignRatingRole = function(member, perf) {
+RatingRoleManager.prototype.assignRatingRole = async function(member, perf) {
     //Check if user has unranked role and remove it
     let unranked = member.roles.find(val => val.name === this.unrankedRole);
     if(unranked) {
-        member.removeRole(unranked).catch(e => console.error("Removing unranked", e));
+        await member.removeRole(unranked);
     }
 
     let matchedRole = this.getRatingRoleForRating(perf.rating - (perf.penalty || 0));
@@ -30,7 +30,7 @@ RatingRoleManager.prototype.assignRatingRole = function(member, perf) {
                 alreadyHasMatchedRole = true;
                 actualRole = role;
             } else {
-                member.removeRole(role).catch(e => console.error("Remove other rating roles", e));
+                member.removeRole(role);
             }
         }
     });
@@ -39,26 +39,26 @@ RatingRoleManager.prototype.assignRatingRole = function(member, perf) {
     if(!alreadyHasMatchedRole) {
         let role = this.deepblue.guild.roles.find(val => val.name === matchedRole);
         actualRole = role;
-        member.addRole(role).catch(e => console.error("Add new role", member.nickname || member.user.username, e));
+        await member.addRole(role);
     }
 
     return actualRole;
 };
 
-RatingRoleManager.prototype.assignProvisionalRole = function(member) {
+RatingRoleManager.prototype.assignProvisionalRole = async function(member) {
     //Check if user has unranked role and remove it
     let unranked = member.roles.find(val => val.name === this.unrankedRole);
     if(unranked) {
-        member.removeRole(unranked).catch(e => console.error("", e));
+        await member.removeRole(unranked);
     }
 
     let currentRole = this.getCurrentRatingRole(member);
     let provRole = this.deepblue.guild.roles.find(val => val.name === this.provisionalRole);
     if(!currentRole || currentRole.name !== provRole.name) {
         if(currentRole) {
-            member.removeRole(currentRole).catch(e => console.error("Remove current role", e));
+            await member.removeRole(currentRole);
         }
-        member.addRole(provRole).catch(e => console.error("Add provisional role", e));
+        await member.addRole(provRole);
     }
 
     return provRole;
@@ -76,15 +76,15 @@ RatingRoleManager.prototype.getCurrentRatingRole = function(member) {
     return found;
 };
 
-RatingRoleManager.prototype.removeRatingRole = function(member) {
+RatingRoleManager.prototype.removeRatingRole = async function(member) {
     member.roles.some(role => {
         if(this.roles.includes(role.name) || role.name === this.provisionalRole) {
-            member.removeRole(role).catch(e => console.error("Removing rating role", e));
+            member.removeRole(role);
         }
     });
 
     let unranked = this.deepblue.guild.roles.find(val => val.name === this.unrankedRole);
-    member.addRole(unranked).catch(e => console.error("Adding unranked role", e));
+    await member.addRole(unranked);
 };
 
 RatingRoleManager.prototype.getRatingRoleForRating = function(rating) {
@@ -104,7 +104,7 @@ RatingRoleManager.prototype.getRatingRoleForRating = function(rating) {
     }
 
     if(!matchedRole) {
-        console.error(`Coundn't find appropriate role for rating ${rating}.`);
+        console.log(`Coundn't find appropriate role for rating ${rating}.`);
         return null;
     }
 

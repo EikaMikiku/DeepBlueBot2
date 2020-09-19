@@ -2,7 +2,7 @@ const cfg = require("../../config.json");
 const DataManager = require("../datamanager.js");
 const PerformanceBreakdown = require("../perf.js");
 
-function ActiveListCommand(deepblue, msg) {
+async function ActiveListCommand(deepblue, msg) {
     if(cfg.list.channels) {
         if(!cfg.list.channels.includes(msg.channel.name)) {
             return; //Not in the right channel
@@ -26,8 +26,7 @@ function ActiveListCommand(deepblue, msg) {
         type = split[1];
         page = parseInt(split[2]);
         if(isNaN(page) || page.toString() !== split[2]) {
-            deepblue.sendMessage(msg.channel, "Invalid page.");
-            msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
+            await deepblue.sendMessage(msg.channel, "Invalid page.");
             return;
         }
     }
@@ -66,8 +65,7 @@ function ActiveListCommand(deepblue, msg) {
     }
 
     if(collectedData.length === 0) {
-        deepblue.sendMessage(msg.channel, "Couldn't find listing for that chess variant.");
-        msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
+        await deepblue.sendMessage(msg.channel, "Couldn't find listing for that chess variant.");
         return;
     }
 
@@ -128,8 +126,7 @@ function ActiveListCommand(deepblue, msg) {
         output.embed.description += ` RD is above ${cfg.lichessTracker.ratingDeviationThreshold}.`;
     }
 
-    deepblue.sendMessage(msg.channel, output);
-    msg.delete(cfg.deepblue.messageDeleteDelay).catch(console.error);
+    await deepblue.sendMessage(msg.channel, output);
 }
 
 module.exports = ActiveListCommand;

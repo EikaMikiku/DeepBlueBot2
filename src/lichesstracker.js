@@ -1,8 +1,8 @@
-const request = require("request");
+const fetch = require("node-fetch");
 const cfg = require("../config.json");
 const EmojiSelector = require("./emoji.js");
 const DataManager = require("./datamanager.js");
-const PerformanceBreakdown = require("./perf.js");
+const PerfUtils = require("./perf.js");
 
 function LichessTracker(deepblue) {
     this.deepblue = deepblue;
@@ -13,18 +13,18 @@ function LichessTracker(deepblue) {
     this.updateAll();
 }
 
-LichessTracker.prototype.validateLichessParsedData = function(data, noModSpam) {
+LichessTracker.prototype.validateLichessParsedData = async function(data, noModSpam) {
     if(data.closed) {
-        console.log(`Account "${data.username}" is closed on Lichess.`);
+        console.error(`Account "${data.username}" is closed on Lichess.`);
         if(!noModSpam) {
-            this.deepblue.modChannel.send(`${this.deepblue.staffRole}\n${data.username} has a closed account.`);
+            await this.deepblue.modChannel.send(`${this.deepblue.staffRole}\n${data.username} has a closed account.`);
         }
         return false;
     }
     if(data.cheating) {
-        console.log(data.cheating);
+        console.error(data.cheating);
         if(!noModSpam) {
-            this.deepblue.modChannel.send(`${this.deepblue.staffRole}\n${data.cheating}`);
+            await this.deepblue.modChannel.send(`${this.deepblue.staffRole}\n${data.cheating}`);
         }
         return false;
     }
@@ -50,7 +50,6 @@ LichessTracker.prototype.parseLichessUserData = function(data) {
             cheating += " uses chess computer assistance, and artificially increases/decreases their rating.";
         }
         output.cheating = cheating;
-        console.log(output.cheating);
     }
 
     let allProvisional = true;
@@ -62,6 +61,7 @@ LichessTracker.prototype.parseLichessUserData = function(data) {
         }
 
         if(!cfg.deepblue.allPerfs.includes(type)) {
+            //Do not care about this variant, delete it
             delete data.perfs[type];
             continue;
         }
@@ -78,7 +78,7 @@ LichessTracker.prototype.parseLichessUserData = function(data) {
     }
 
     //Add custom FIDE perf if possible
-    let fide = PerformanceBreakdown.getFideEstimate(data.perfs);
+    let fide = PerfUtils.getFideEstimate(data.perfs);
     if(fide) {
         data.perfs.fide = {
             "rating": Math.round(fide),
@@ -92,14 +92,15 @@ LichessTracker.prototype.parseLichessUserData = function(data) {
     return output;
 };
 
-LichessTracker.prototype.updateManyUsers = function(lichessData) {
+LichessTracker.prototype.updateManyUsers = async function(lichessData) {
     for(let i = 0; i < lichessData.length; i++) {
         let parsedData = this.parseLichessUserData(lichessData[i]);
         let uid = this.getLinkedUserId(parsedData.username);
-        let valid = this.validateLichessParsedData(parsedData);
+        let valid = await this.validateLichessParsedData(parsedData);
         if(uid && valid) {
             let member = this.deepblue.guild.members.get(uid);
             if(!member) {
+                console.log(`Seems like ${parsedData.username} left the server.`);
                 delete this.data[uid];
                 continue;
             }
@@ -113,35 +114,25 @@ LichessTracker.prototype.updateManyUsers = function(lichessData) {
             }
 
             if(parsedData.allProvisional) {
-                this.deepblue.ratingRoleManager.assignProvisionalRole(member);
+                await this.deepblue.ratingRoleManager.assignProvisionalRole(member);
                 this.data[uid] = parsedData;
                 continue;
             }
 
             let currentRatingRole = this.deepblue.ratingRoleManager.getCurrentRatingRole(member);
-            let perf = PerformanceBreakdown.getMaxRating(parsedData.perfs, cfg.deepblue.perfsForRoles);
-            let updatedRole = this.deepblue.ratingRoleManager.assignRatingRole(
-                member,
-                perf
-            );
+            let maxRatingPerf = PerfUtils.getMaxRating(parsedData.perfs, cfg.deepblue.perfsForRoles);
+            let updatedRole = await this.deepblue.ratingRoleManager.assignRatingRole(member, maxRatingPerf);
 
-            if(updatedRole && currentRatingRole) {
+            if(updatedRole) {
                 let mrInt = parseInt(updatedRole.name);
-                let crrInt = parseInt(currentRatingRole.name);
+                let crrInt = parseInt(currentRatingRole && currentRatingRole.name);
                 if(isNaN(crrInt)) {
                     //Was provisional, now has proper ratings
-                    this.sendTrackSuccessMessage(
-                        this.deepblue.botChannel,
-                        perf,
-                        parsedData.username,
-                        updatedRole,
-                        name
-                    );
-                    this.deepblue.sendMessage(null, `${name} went from provisional rating to ${mrInt}! Congratulations! ${EmojiSelector("happy")}`);
+                    await this.deepblue.sendMessage(null, `${name} went from provisional rating to ${mrInt}! Congratulations! ${EmojiSelector("happy")}`);
                 } else if(mrInt > crrInt) {
-                    this.deepblue.sendMessage(null, `${name} went from ${crrInt} to ${mrInt}! Congratulations! ${EmojiSelector("happy")}`);
+                    await this.deepblue.sendMessage(null, `${name} went from ${crrInt} to ${mrInt}! Congratulations! ${EmojiSelector("happy")}`);
                 } else if(mrInt < crrInt) {
-                    this.deepblue.sendMessage(null, `${name} went from ${crrInt} to ${mrInt}. ${EmojiSelector("sad")}`);
+                    await this.deepblue.sendMessage(null, `${name} went from ${crrInt} to ${mrInt}. ${EmojiSelector("sad")}`);
                 }
             }
 
@@ -152,70 +143,45 @@ LichessTracker.prototype.updateManyUsers = function(lichessData) {
     }
 };
 
-LichessTracker.prototype.updateAll = function() {
-    //Create chain of bulk updates and start it
-    let start = null;
-    let chain = new Promise((resolve, reject) => start = resolve);
-
+LichessTracker.prototype.updateAll = async function() {
     let uids = Object.keys(this.data);
-
     for(let i = 0; i < uids.length; i+= cfg.lichessTracker.perRequest) {
         let usernames = uids.slice(i, i + cfg.lichessTracker.perRequest).map(uid => {
             return this.data[uid].username;
         }).join(","); //Create CSV of usernames
-        chain = chain.then(() => {
-            return new Promise((resolve, reject) => {
-                setTimeout(() => {
-                    this.getLichessManyUsersData(usernames)
-                    .then(data => this.updateManyUsers(data))
-                    .then(resolve)
-                    .catch(reject);
-                }, i === 0 ? 0 : cfg.lichessTracker.apiRequestTimeout);
-            });
-        })
-        .catch((e) => console.error("update all inner chain", e));
+
+        let newData = await this.getLichessManyUsersData(usernames);
+        await this.updateManyUsers(newData)
+    }
+    this.dataManager.saveData(this.data);
+
+    this.lastUpdateAt = Date.now();
+
+    if(this.updateInterval) {
+        clearInterval(this.updateInterval);
     }
 
-    chain = chain.then(() => {
-        this.dataManager.saveData(this.data);
-    });
-    chain.then(() => {
-        this.lastUpdateAt = Date.now();
+    let rem = Math.round((this.lastUpdateAt + cfg.lichessTracker.updateAllDelay - Date.now()) / 2000) * 2;
+    this.deepblue.discord.user.setActivity(`updates in ${rem}s`, { type: 'PLAYING' });
+    this.updateInterval = setInterval(() => {
+        //Round to multiple of 2
+        rem = Math.round((this.lastUpdateAt + cfg.lichessTracker.updateAllDelay - Date.now()) / 2000) * 2;
+        this.deepblue.discord.user.setActivity(`updates in ${rem}s`, { type: 'PLAYING' });
+    }, 10000);
 
-        if(this.updateInterval) {
-            clearInterval(this.updateInterval);
-        }
-
-        this.updateInterval = setInterval(() => {
-            //Round to multiple of 2
-            let rem = Math.round((this.lastUpdateAt + cfg.lichessTracker.updateAllDelay - Date.now()) / 2000) * 2;
-            if(rem <= 0) {
-            	this.deepblue.discord.user.setActivity(`updates now!`, { type: 'PLAYING' });
-            } else {
-            	this.deepblue.discord.user.setActivity(`updates in ${rem}s`, { type: 'PLAYING' });
-            }
-        }, 10000);
-
-        setTimeout(() => {
-            this.updateAll();
-        }, cfg.lichessTracker.updateAllDelay);
-    });
-    chain.catch((e) => {
-    	console.log("Error", e);
-    	console.error("update all chain", e);
-    	process.exit(1);
-    });
-
-
-    start();
+    setTimeout(() => {
+        clearInterval(this.updateInterval);
+        this.deepblue.discord.user.setActivity(`updates now!`, { type: 'PLAYING' });
+        this.updateAll();
+    }, cfg.lichessTracker.updateAllDelay);
 };
 
-LichessTracker.prototype.sendTrackSuccessMessageProvisional = function(channel, username, role, nickname) {
+LichessTracker.prototype.sendTrackSuccessMessageProvisional = async function(channel, username, role, nickname) {
     let title = `Linked ${nickname} to ${cfg.lichessTracker.lichessProfileUrl.replace("%username%", username)}`;
-    let requiredVariants = cfg.deepblue.perfsForRoles.map(p => PerformanceBreakdown.perfToReadable(p)).join(", ");
+    let requiredVariants = cfg.deepblue.perfsForRoles.map(p => PerfUtils.perfToReadable(p)).join(", ");
     let msg = `Added to rating group **${role.name}**.\nCouldn't find non-provisional ratings for required variants (${requiredVariants}).`;
 
-    this.deepblue.sendMessage(channel, {
+    await this.deepblue.sendMessage(channel, {
         "embed": {
             "title": title,
             "description": msg,
@@ -224,7 +190,7 @@ LichessTracker.prototype.sendTrackSuccessMessageProvisional = function(channel, 
     }, true);
 };
 
-LichessTracker.prototype.sendTrackSuccessMessage = function(channel, perf, username, role, nickname) {
+LichessTracker.prototype.sendTrackSuccessMessage = async function(channel, perf, username, role, nickname) {
     let title = `Linked ${nickname} to ${cfg.lichessTracker.lichessProfileUrl.replace("%username%", username)}`;
     let msg = `Added to rating group **${role.name}** with a rating of **${perf.rating}** (${perf.type})`;
 
@@ -233,75 +199,68 @@ LichessTracker.prototype.sendTrackSuccessMessage = function(channel, perf, usern
         msg += ` RD is above ${cfg.lichessTracker.ratingDeviationThreshold}.`;
     }
 
-    this.deepblue.sendMessage(channel, {
+    await this.deepblue.sendMessage(channel, {
         "embed": {
             "title": title,
             "description": msg,
             "color": cfg.deepblue.embedColor
         }
     }, true); //Keep message
-}
-
-LichessTracker.prototype.track = function(msg, username, member) {
-    member = member || msg.member;
-
-    this.getLichessUserData(username)
-    .then((lichessUserData) => {
-        if(this.data[member.id] && this.data[member.id].username) {
-            let url = cfg.lichessTracker.lichessProfileUrl.replace("%username%", this.data[member.id].username);
-            this.deepblue.sendMessage(msg.channel, `Previously you were tracked as ${url}.`);
-        }
-
-        let parsedData = this.parseLichessUserData(lichessUserData);
-
-        if(parsedData) {
-            let valid = this.validateLichessParsedData(parsedData, true);
-            if(valid) {
-                if(parsedData.allProvisional) {
-                    //If all provisional, only add provisional role, still keep track
-                    let role = this.deepblue.ratingRoleManager.assignProvisionalRole(member);
-                    this.sendTrackSuccessMessageProvisional(
-                        msg.channel,
-                        parsedData.username,
-                        role,
-                        member.nickname || msg.author.username
-                    );
-                } else {
-                    let perf = PerformanceBreakdown.getMaxRating(parsedData.perfs, cfg.deepblue.perfsForRoles);
-                    let role = this.deepblue.ratingRoleManager.assignRatingRole(member, perf);
-                    this.sendTrackSuccessMessage(
-                        msg.channel,
-                        perf,
-                        parsedData.username,
-                        role,
-                        member.nickname || member.user.username
-                    );
-                }
-
-                if(member.lastMessage) {
-                    parsedData.lastMessageAt = member.lastMessage.createdTimestamp;
-                } else {
-                    parsedData.lastMessageAt = Date.now();
-                }
-
-                this.data[member.id] = parsedData;
-                this.dataManager.saveData(this.data);
-            } else if(parsedData.closed) {
-                this.deepblue.sendMessage(msg.channel, `Account "${parsedData.username}" is closed on Lichess.`);
-            } else {
-                this.deepblue.sendMessage(msg.channel, `Couldn't track ${parsedData.username}.\nDid you type your username correctly?`);
-            }
-        }
-    })
-    .catch(error => {
-        this.deepblue.sendMessage(msg.channel, error.toString());
-    })
-    .finally(() => {
-        console.log("Tracking done", username);
-    });
 };
 
-LichessTracker.prototype.remove = function(msg, member) {
+LichessTracker.prototype.track = async function(msg, username, member) {
+    member = member || msg.member;
+
+    let lichessUserData = await this.getLichessUserData(username);
+
+    if(this.data[member.id] && this.data[member.id].username) {
+        let url = cfg.lichessTracker.lichessProfileUrl.replace("%username%", this.data[member.id].username);
+        await this.deepblue.sendMessage(msg.channel, `Previously you were tracked as ${url}.`);
+    }
+
+    let parsedData = this.parseLichessUserData(lichessUserData);
+
+    if(parsedData) {
+        let valid = await this.validateLichessParsedData(parsedData, true);
+        if(valid) {
+            if(parsedData.allProvisional) {
+                //If all provisional, only add provisional role, still keep track
+                let role = await this.deepblue.ratingRoleManager.assignProvisionalRole(member);
+                await this.sendTrackSuccessMessageProvisional(
+                    msg.channel,
+                    parsedData.username,
+                    role,
+                    member.nickname || msg.author.username
+                );
+            } else {
+                let maxRatingPerf = PerfUtils.getMaxRating(parsedData.perfs, cfg.deepblue.perfsForRoles);
+                let role = await this.deepblue.ratingRoleManager.assignRatingRole(member, maxRatingPerf);
+                await this.sendTrackSuccessMessage(
+                    msg.channel,
+                    maxRatingPerf,
+                    parsedData.username,
+                    role,
+                    member.nickname || member.user.username
+                );
+            }
+
+            if(member.lastMessage) {
+                parsedData.lastMessageAt = member.lastMessage.createdTimestamp;
+            } else {
+                parsedData.lastMessageAt = Date.now();
+            }
+
+            this.data[member.id] = parsedData;
+            this.dataManager.saveData(this.data);
+        } else if(parsedData.closed) {
+            await this.deepblue.sendMessage(msg.channel, `Account "${parsedData.username}" is closed on Lichess.`);
+        } else {
+            await this.deepblue.sendMessage(msg.channel, `Couldn't track ${parsedData.username}.\nDid you type your username correctly?`);
+        }
+    }
+};
+
+LichessTracker.prototype.remove = async function(msg, member) {
     let existed = !!this.data[member.id];
 
     if(existed) {
@@ -309,17 +268,15 @@ LichessTracker.prototype.remove = function(msg, member) {
         this.dataManager.saveData(this.data);
 
         if(msg) { //No message if left server, kicked
-            this.deepblue.ratingRoleManager.removeRatingRole(member);
+            await this.deepblue.ratingRoleManager.removeRatingRole(member);
         }
 
         let channel = msg ? msg.channel : this.deepblue.botChannel;
-        let str = `No longer tracking ${member.nickname || member.user.username}.`;
-        this.deepblue.sendMessage(channel, str, true);
-        console.log(str);
+        await this.deepblue.sendMessage(channel, `No longer tracking ${member.nickname || member.user.username}.`, true);
     }
 };
 
-LichessTracker.prototype.removeByUsername = function(msg, username) {
+LichessTracker.prototype.removeByUsername = async function(msg, username) {
     let uid = this.getLinkedUserId(username);
 
     if(uid) {
@@ -327,10 +284,10 @@ LichessTracker.prototype.removeByUsername = function(msg, username) {
 
         delete this.data[uid];
         this.dataManager.saveData(this.data);
-        this.deepblue.ratingRoleManager.removeRatingRole(member);
-        this.deepblue.sendMessage(msg.channel, `No longer tracking ${member.nickname || member.user.username}.`, true);
+        await this.deepblue.ratingRoleManager.removeRatingRole(member);
+        await this.deepblue.sendMessage(msg.channel, `No longer tracking ${member.nickname || member.user.username}.`, true);
     } else {
-        this.deepblue.sendMessage(msg.channel, `Couldn't find a member with Lichess username "${username}".`);
+        await this.deepblue.sendMessage(msg.channel, `Couldn't find a member with Lichess username "${username}".`);
     }
 };
 
@@ -342,49 +299,25 @@ LichessTracker.prototype.getLinkedUserId = function(lichessUsername) {
     }
 };
 
-LichessTracker.prototype.getLichessUserData = function(username) {
-    return new Promise((resolve, reject) => {
-        let url = cfg.lichessTracker.lichessApiUser.replace("%username%", username);
-        request.get(url, (error, response, body) => {
-            if(error) {
-                return reject("Error accessing Lichess API.");
-            }
-            if(body.length === 0) {
-                return reject(`Couldn't find "${username}" on Lichess.`);
-            }
-            let json = null;
-            try {
-                json = JSON.parse(body);
-                resolve(json);
-            } catch(e) {
-                reject(`Error getting user data for "${username}".`);
-            }
-        });
-    });
+LichessTracker.prototype.getLichessUserData = async function(username) {
+    let result = await fetch(
+        cfg.lichessTracker.lichessApiUser.replace("%username%", username),
+        {
+            method: "GET",
+        }
+    );
+    return await result.json();
 };
 
-LichessTracker.prototype.getLichessManyUsersData = function(usernames) {
-    return new Promise((resolve, reject) => {
-        request({
+LichessTracker.prototype.getLichessManyUsersData = async function(usernames) {
+    let result = await fetch(
+        cfg.lichessTracker.lichessApiManyUsers,
+        {
             method: "POST",
-            url: cfg.lichessTracker.lichessApiManyUsers,
             body: usernames
-        }, (error, response, body) => {
-            if(error) {
-                return reject("Error accessing Lichess API.");
-            }
-            if(body.length === 0) {
-                return reject(`Couldn't find one of "${usernames}" on Lichess.`);
-            }
-            let json = null;
-            try {
-                json = JSON.parse(body);
-                resolve(json);
-            } catch(e) {
-                reject(`Error getting user data for "${usernames}".`);
-            }
-        });
-    });
+        }
+    );
+    return await result.json();
 };
 
 module.exports = LichessTracker;
